@@ -11,7 +11,7 @@
 
 ## 🔗 라이브 데모
 
-**[여기를 클릭하면 브라우저에서 바로 시뮬레이터를 실행할 수 있습니다 →](https://dram-simulator-yoontf0.streamlit.app)**
+**[여기를 클릭하면 브라우저에서 바로 시뮬레이터를 실행할 수 있습니다!](https://dram-simulator-yoontf0.streamlit.app)**
 
 
 ## 모델링하는 DRAM 개념
