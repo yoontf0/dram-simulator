@@ -92,25 +92,6 @@ dram-simulator/
     └── test_dram_cell.py   # cell 레벨 모델 테스트
 ```
 
-## 빠른 시작
-
-```bash
-git clone <your-repo-url> && cd dram-simulator
-
-python -m venv .venv
-# Windows:  .venv\Scripts\activate
-# macOS/Linux:  source .venv/bin/activate
-
-pip install -r requirements.txt
-
-# 테스트 실행
-pytest
-
-# 대시보드 실행
-streamlit run app.py
-```
-
-http://localhost:8501 을 열어 타이밍 슬라이더를 조정하고, 자신만의 trace를 업로드하고, FCFS와 FR-FCFS를 비교해보세요.
 
 ## 시뮬레이션 결과
 
@@ -154,13 +135,6 @@ cycle,address,op
 
 `cycle`은 메모리 컨트롤러에 요청이 도착하는 시각입니다.
 
-## Streamlit Community Cloud에 배포하기
-
-1. 이 저장소를 GitHub에 push합니다 (public repo).
-2. [share.streamlit.io](https://share.streamlit.io)에서 GitHub 계정으로 로그인합니다.
-3. **New app** → 저장소/브랜치 선택 → **Main file path**를 `app.py`로 설정 → **Deploy**.
-
-`requirements.txt`는 자동으로 인식되며, 추가 설정은 필요하지 않습니다.
 
 ## 모델 단순화 범위 (MVP scope)
 
