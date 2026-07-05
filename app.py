@@ -12,6 +12,7 @@ import io
 from pathlib import Path
 
 import altair as alt
+import matplotlib.pyplot as plt
 import pandas as pd
 import streamlit as st
 
@@ -20,6 +21,9 @@ from src.dram_config import DRAMConfig
 from src.simulator import SimulationResult, load_trace, run_simulation
 
 SAMPLE_TRACE = Path(__file__).parent / "data" / "sample_trace.csv"
+IMAGE_DIR = Path(__file__).parent / "docs" / "images"
+IMAGE_DIR.mkdir(parents=True, exist_ok=True)
+
 OUTCOME_COLORS = alt.Scale(domain=["hit", "miss", "conflict"],
                            range=["#2ecc71", "#f1c40f", "#e74c3c"])
 
@@ -29,6 +33,22 @@ st.caption(
     "Trace-driven DRAM timing simulator inspired by DRAMSim2 / Ramulator, plus an "
     "educational 1T1C cell-level model showing why DRAM needs refresh."
 )
+
+
+def save_and_download(fig: plt.Figure, filename: str) -> bytes:
+    """Save matplotlib figure as PNG and return BytesIO for download button."""
+    filepath = IMAGE_DIR / filename
+    fig.savefig(filepath, dpi=150, bbox_inches="tight")
+    buf = io.BytesIO()
+    fig.savefig(buf, format="png", dpi=150, bbox_inches="tight")
+    buf.seek(0)
+    return buf.getvalue()
+
+
+def chart_download_col(fig: plt.Figure, filename: str) -> bytes:
+    """Convenience: save chart and return bytes for st.download_button."""
+    return save_and_download(fig, filename)
+
 
 tab_arch, tab_cell = st.tabs(["🚌 DRAM Access Simulator", "🔋 1T1C Cell Visualizer"])
 
@@ -147,6 +167,18 @@ with tab_arch:
             ),
             use_container_width=True,
         )
+        # Save matplotlib version
+        fig, ax = plt.subplots(figsize=(6, 4))
+        colors = {"hit": "#2ecc71", "miss": "#f1c40f", "conflict": "#e74c3c"}
+        color_list = [colors[r] for r in outcome["result"]]
+        ax.bar(outcome["result"], outcome["count"], color=color_list)
+        ax.set_xlabel("Outcome")
+        ax.set_ylabel("Requests")
+        ax.set_title("Row-Buffer Hit/Miss/Conflict")
+        buf = chart_download_col(fig, "row_buffer_hit_rate.png")
+        plt.close(fig)
+        st.download_button("📥 Download chart", buf, "row_buffer_hit_rate.png", "image/png", key="hit_rate")
+
     with right:
         st.markdown("**Bank utilization (accesses per bank)**")
         bank_df = df.groupby("bank").size().reset_index(name="accesses")
@@ -156,6 +188,15 @@ with tab_arch:
             ),
             use_container_width=True,
         )
+        # Save matplotlib version
+        fig, ax = plt.subplots(figsize=(8, 4))
+        ax.bar(bank_df["bank"].astype(str), bank_df["accesses"], color="#3498db")
+        ax.set_xlabel("Bank")
+        ax.set_ylabel("Accesses")
+        ax.set_title("Bank Utilization")
+        buf = chart_download_col(fig, "bank_utilization.png")
+        plt.close(fig)
+        st.download_button("📥 Download chart", buf, "bank_utilization.png", "image/png", key="bank_util")
 
     st.markdown("**Latency per request** (colored by row-buffer outcome)")
     st.altair_chart(
@@ -169,6 +210,21 @@ with tab_arch:
         ),
         use_container_width=True,
     )
+    # Save matplotlib version
+    fig, ax = plt.subplots(figsize=(10, 5))
+    colors_map = {"hit": "#2ecc71", "miss": "#f1c40f", "conflict": "#e74c3c"}
+    for result_type in ["hit", "miss", "conflict"]:
+        mask = df["result"] == result_type
+        ax.scatter(df[mask]["req_id"], df[mask]["latency"],
+                  label=result_type, color=colors_map[result_type], s=60, alpha=0.7)
+    ax.set_xlabel("Request ID (trace order)")
+    ax.set_ylabel("Latency (cycles)")
+    ax.set_title("Latency per Request")
+    ax.legend()
+    ax.grid(True, alpha=0.3)
+    buf = chart_download_col(fig, "latency_histogram.png")
+    plt.close(fig)
+    st.download_button("📥 Download chart", buf, "latency_histogram.png", "image/png", key="latency")
 
     st.markdown("**Command timeline** (each dot = one DRAM command on the command bus)")
     cmd_df = commands_frame(main)
@@ -184,6 +240,23 @@ with tab_arch:
         ),
         use_container_width=True,
     )
+    # Save matplotlib version
+    if not cmd_df.empty:
+        fig, ax = plt.subplots(figsize=(12, 5))
+        cmd_colors = {"ACTIVATE": "#e67e22", "READ": "#3498db", "WRITE": "#9b59b6", "PRECHARGE": "#e74c3c"}
+        for cmd in cmd_df["command"].unique():
+            mask = cmd_df["command"] == cmd
+            y_vals = cmd_df[mask]["bank"].str.extract(r"Bank (\d+)")[0].astype(int)
+            ax.scatter(cmd_df[mask]["cycle"], y_vals, label=cmd,
+                      color=cmd_colors.get(cmd, "#95a5a6"), s=80, alpha=0.7)
+        ax.set_xlabel("Cycle")
+        ax.set_ylabel("Bank")
+        ax.set_title("Command Timeline")
+        ax.legend()
+        ax.grid(True, alpha=0.3)
+        buf = chart_download_col(fig, "command_timeline.png")
+        plt.close(fig)
+        st.download_button("📥 Download chart", buf, "command_timeline.png", "image/png", key="cmd_timeline")
 
     with st.expander("Per-request detail table"):
         st.dataframe(df, use_container_width=True, hide_index=True)
@@ -353,6 +426,23 @@ with tab_cell:
         "orange = destructive read (charge sharing), green = sense-amp restore, "
         "red = retention failure (wrong value sensed and restored)."
     )
+
+    # Save matplotlib version of charge decay chart
+    fig, ax = plt.subplots(figsize=(12, 6))
+    sample_with = pd.DataFrame(with_refresh.samples, columns=["time", "charge"])
+    sample_no = pd.DataFrame(no_refresh.samples, columns=["time", "charge"])
+    ax.plot(sample_with["time"], sample_with["charge"], "b-", linewidth=2, label="with refresh")
+    ax.plot(sample_no["time"], sample_no["charge"], "gray", linewidth=2, linestyle="--", label="without refresh")
+    ax.axhline(y=threshold, color="#7f8c8d", linestyle="--", linewidth=1.5, label=f"sense threshold ({threshold})")
+    ax.set_xlabel("Time (units)")
+    ax.set_ylabel("Capacitor charge (normalized)")
+    ax.set_ylim([0, 1.05])
+    ax.set_title("1T1C Cell Charge Decay with Refresh")
+    ax.legend(loc="best")
+    ax.grid(True, alpha=0.3)
+    buf = chart_download_col(fig, "one_t_one_c_charge_decay.png")
+    plt.close(fig)
+    st.download_button("📥 Download chart", buf, "one_t_one_c_charge_decay.png", "image/png", key="charge_decay")
 
     # ---- Refresh overhead ----
     st.markdown("#### Refresh overhead at the system level")

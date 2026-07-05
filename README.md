@@ -107,6 +107,35 @@ streamlit run app.py
 
 Open http://localhost:8501, tweak the timing sliders, upload your own trace, and compare FCFS vs FR-FCFS.
 
+## Simulation Results
+
+Sample output from the bundled trace (20 requests on a DDR4-like system):
+
+### Row-Buffer Hit/Miss/Conflict
+Compares the row-buffer outcomes across the trace. FR-FCFS achieves higher hit rate by reordering pending requests.
+
+![Row Buffer Hit Rate](docs/images/row_buffer_hit_rate.png)
+
+### Bank Utilization
+Distribution of memory requests across the eight banks. Ideally, a well-mixed address pattern spreads evenly.
+
+![Bank Utilization](docs/images/bank_utilization.png)
+
+### Latency per Request
+Scatter plot of each request's latency (cycles from arrival to data ready), colored by outcome. Row hits are fast (`tCL`); conflicts are slow (`tRP + tRCD + tCL`).
+
+![Latency Histogram](docs/images/latency_histogram.png)
+
+### Command Timeline
+The sequence of DRAM commands (ACT/RD/WR/PRE) issued to each bank over time. Different banks can issue commands in parallel (bank-level parallelism).
+
+![Command Timeline](docs/images/command_timeline.png)
+
+### 1T1C Cell Charge Decay
+The educational visualization of a DRAM cell's capacitor charge over time, showing leakage, destructive read effects, and the periodic refresh cycles that keep the value alive.
+
+![1T1C Charge Decay](docs/images/one_t_one_c_charge_decay.png)
+
 ## Trace format
 
 CSV with a header, one request per line. Addresses can be hex (`0x...`) or decimal; `#` lines are comments.
