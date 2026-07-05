@@ -27,11 +27,11 @@ IMAGE_DIR.mkdir(parents=True, exist_ok=True)
 OUTCOME_COLORS = alt.Scale(domain=["hit", "miss", "conflict"],
                            range=["#2ecc71", "#f1c40f", "#e74c3c"])
 
-st.set_page_config(page_title="DRAM Simulator", page_icon="🧠", layout="wide")
-st.title("🧠 DRAM Simulator")
+st.set_page_config(page_title="DRAM 시뮬레이터", page_icon="🧠", layout="wide")
+st.title("🧠 DRAM 시뮬레이터")
 st.caption(
-    "Trace-driven DRAM timing simulator inspired by DRAMSim2 / Ramulator, plus an "
-    "educational 1T1C cell-level model showing why DRAM needs refresh."
+    "DRAMSim2 / Ramulator에서 영감을 받은 trace 기반 DRAM 타이밍 시뮬레이터와, "
+    "DRAM이 왜 refresh를 필요로 하는지 보여주는 교육용 1T1C 셀 모델입니다."
 )
 
 
@@ -50,31 +50,31 @@ def chart_download_col(fig: plt.Figure, filename: str) -> bytes:
     return save_and_download(fig, filename)
 
 
-tab_arch, tab_cell = st.tabs(["🚌 DRAM Access Simulator", "🔋 1T1C Cell Visualizer"])
+tab_arch, tab_cell = st.tabs(["🚌 DRAM 접근 시뮬레이터", "🔋 1T1C 셀 시각화"])
 
 # =====================================================================
 # Tab 1 — Architecture-level access simulator
 # =====================================================================
 
 with st.sidebar:
-    st.header("DRAM Configuration")
-    st.caption("Applies to the *DRAM Access Simulator* tab.")
+    st.header("DRAM 설정")
+    st.caption("*DRAM 접근 시뮬레이터* 탭에 적용됩니다.")
 
-    preset = st.selectbox("Preset", ["DDR4-2400-like", "Custom"])
-    if preset == "DDR4-2400-like":
+    preset = st.selectbox("프리셋", ["DDR4-2400 유사", "커스텀"])
+    if preset == "DDR4-2400 유사":
         trcd, tcl, trp, tras = 14, 14, 14, 33
     else:
         trcd = st.slider("tRCD (ACT→RD/WR)", 1, 40, 14)
         tcl = st.slider("tCL (RD/WR→data)", 1, 40, 14)
         trp = st.slider("tRP (PRE→ACT)", 1, 40, 14)
-        tras = st.slider("tRAS (ACT→PRE min)", 1, 80, 33)
-    st.caption(f"tRC = tRAS + tRP = **{tras + trp}** cycles")
+        tras = st.slider("tRAS (ACT→PRE 최소)", 1, 80, 33)
+    st.caption(f"tRC = tRAS + tRP = **{tras + trp}** 사이클")
 
-    num_banks = st.select_slider("Banks per rank", options=[2, 4, 8, 16], value=8)
+    num_banks = st.select_slider("랭크당 뱅크 수", options=[2, 4, 8, 16], value=8)
 
-    st.header("Scheduling")
-    policy = st.radio("Policy", ["FCFS", "FR-FCFS"], index=1, horizontal=True)
-    compare = st.checkbox("Compare both policies", value=True)
+    st.header("스케줄링")
+    policy = st.radio("정책", ["FCFS", "FR-FCFS"], index=1, horizontal=True)
+    compare = st.checkbox("두 정책 비교하기", value=True)
 
 config = DRAMConfig(num_banks=num_banks, tRCD=trcd, tCL=tcl, tRP=trp, tRAS=tras, tRC=tras + trp)
 
@@ -113,20 +113,20 @@ def commands_frame(sim: SimulationResult) -> pd.DataFrame:
 
 
 with tab_arch:
-    st.subheader("1. Input trace")
-    uploaded = st.file_uploader("Upload a trace CSV (`cycle,address,op`)", type=["csv"])
+    st.subheader("1. Trace 입력")
+    uploaded = st.file_uploader("Trace CSV 업로드 (`cycle,address,op`)", type=["csv"])
     if uploaded is not None:
         trace = load_trace(io.TextIOWrapper(uploaded, encoding="utf-8"))
-        st.success(f"Loaded {len(trace)} requests from `{uploaded.name}`.")
+        st.success(f"`{uploaded.name}`에서 요청 {len(trace)}개를 불러왔습니다.")
     else:
         trace = load_trace(SAMPLE_TRACE)
-        st.info(f"Using bundled sample trace ({len(trace)} requests). Upload a CSV to replace it.")
+        st.info(f"기본 제공 샘플 trace를 사용 중입니다 (요청 {len(trace)}개). CSV를 업로드하면 교체됩니다.")
 
     policies = ["FCFS", "FR-FCFS"] if compare else [policy]
     sims = {p: run_simulation(config, trace, p) for p in policies}
     main = sims[policy] if policy in sims else sims[policies[0]]
 
-    st.subheader("2. Summary")
+    st.subheader("2. 요약")
     if compare:
         cols = st.columns(len(policies))
         for col, p in zip(cols, policies):
@@ -134,25 +134,25 @@ with tab_arch:
             with col:
                 st.markdown(f"**{p}**")
                 m1, m2 = st.columns(2)
-                m1.metric("Total cycles", s.total_cycles)
-                m2.metric("Avg latency", f"{s.avg_latency:.1f}")
+                m1.metric("총 사이클", s.total_cycles)
+                m2.metric("평균 지연시간", f"{s.avg_latency:.1f}")
                 m3, m4 = st.columns(2)
-                m3.metric("Row-hit rate", f"{s.hit_rate:.0%}")
+                m3.metric("Row-hit 비율", f"{s.hit_rate:.0%}")
                 m4.metric("Hit / Miss / Conf", f"{s.hits} / {s.misses} / {s.conflicts}")
     else:
         s = main.stats
         m1, m2, m3, m4 = st.columns(4)
-        m1.metric("Total cycles", s.total_cycles)
-        m2.metric("Avg latency (cycles)", f"{s.avg_latency:.1f}")
-        m3.metric("Row-hit rate", f"{s.hit_rate:.0%}")
+        m1.metric("총 사이클", s.total_cycles)
+        m2.metric("평균 지연시간 (사이클)", f"{s.avg_latency:.1f}")
+        m3.metric("Row-hit 비율", f"{s.hit_rate:.0%}")
         m4.metric("Hit / Miss / Conflict", f"{s.hits} / {s.misses} / {s.conflicts}")
 
     df = results_frame(main)
-    st.subheader(f"3. Visualization — {main.stats.policy}")
+    st.subheader(f"3. 시각화 — {main.stats.policy}")
 
     left, right = st.columns(2)
     with left:
-        st.markdown("**Row-buffer outcome per request**")
+        st.markdown("**요청별 row-buffer 결과**")
         outcome = (
             df["result"].value_counts().reindex(["hit", "miss", "conflict"]).fillna(0).reset_index()
         )
@@ -161,8 +161,8 @@ with tab_arch:
             alt.Chart(outcome)
             .mark_bar()
             .encode(
-                x=alt.X("result", sort=["hit", "miss", "conflict"], title="Outcome"),
-                y=alt.Y("count", title="Requests"),
+                x=alt.X("result", sort=["hit", "miss", "conflict"], title="결과"),
+                y=alt.Y("count", title="요청 수"),
                 color=alt.Color("result", scale=OUTCOME_COLORS, legend=None),
             ),
             use_container_width=True,
@@ -177,14 +177,14 @@ with tab_arch:
         ax.set_title("Row-Buffer Hit/Miss/Conflict")
         buf = chart_download_col(fig, "row_buffer_hit_rate.png")
         plt.close(fig)
-        st.download_button("📥 Download chart", buf, "row_buffer_hit_rate.png", "image/png", key="hit_rate")
+        st.download_button("📥 차트 다운로드", buf, "row_buffer_hit_rate.png", "image/png", key="hit_rate")
 
     with right:
-        st.markdown("**Bank utilization (accesses per bank)**")
+        st.markdown("**뱅크 사용률 (뱅크별 접근 횟수)**")
         bank_df = df.groupby("bank").size().reset_index(name="accesses")
         st.altair_chart(
             alt.Chart(bank_df).mark_bar().encode(
-                x=alt.X("bank:O", title="Bank"), y=alt.Y("accesses", title="Accesses")
+                x=alt.X("bank:O", title="뱅크"), y=alt.Y("accesses", title="접근 횟수")
             ),
             use_container_width=True,
         )
@@ -196,15 +196,15 @@ with tab_arch:
         ax.set_title("Bank Utilization")
         buf = chart_download_col(fig, "bank_utilization.png")
         plt.close(fig)
-        st.download_button("📥 Download chart", buf, "bank_utilization.png", "image/png", key="bank_util")
+        st.download_button("📥 차트 다운로드", buf, "bank_utilization.png", "image/png", key="bank_util")
 
-    st.markdown("**Latency per request** (colored by row-buffer outcome)")
+    st.markdown("**요청별 지연시간** (row-buffer 결과별 색상)")
     st.altair_chart(
         alt.Chart(df)
         .mark_circle(size=90)
         .encode(
-            x=alt.X("req_id", title="Request ID (trace order)"),
-            y=alt.Y("latency", title="Latency (cycles)"),
+            x=alt.X("req_id", title="요청 ID (trace 순서)"),
+            y=alt.Y("latency", title="지연시간 (사이클)"),
             color=alt.Color("result", scale=OUTCOME_COLORS),
             tooltip=["req_id", "address", "op", "bank", "row", "result", "latency"],
         ),
@@ -224,17 +224,17 @@ with tab_arch:
     ax.grid(True, alpha=0.3)
     buf = chart_download_col(fig, "latency_histogram.png")
     plt.close(fig)
-    st.download_button("📥 Download chart", buf, "latency_histogram.png", "image/png", key="latency")
+    st.download_button("📥 차트 다운로드", buf, "latency_histogram.png", "image/png", key="latency")
 
-    st.markdown("**Command timeline** (each dot = one DRAM command on the command bus)")
+    st.markdown("**명령어 타임라인** (점 하나 = command bus에 발행된 DRAM 명령어 1개)")
     cmd_df = commands_frame(main)
     st.altair_chart(
         alt.Chart(cmd_df)
         .mark_point(size=80, filled=True)
         .encode(
-            x=alt.X("cycle", title="Cycle"),
-            y=alt.Y("bank", title="Bank"),
-            color=alt.Color("command", title="Command"),
+            x=alt.X("cycle", title="사이클"),
+            y=alt.Y("bank", title="뱅크"),
+            color=alt.Color("command", title="명령어"),
             shape="command",
             tooltip=["cycle", "command", "bank", "row"],
         ),
@@ -256,18 +256,18 @@ with tab_arch:
         ax.grid(True, alpha=0.3)
         buf = chart_download_col(fig, "command_timeline.png")
         plt.close(fig)
-        st.download_button("📥 Download chart", buf, "command_timeline.png", "image/png", key="cmd_timeline")
+        st.download_button("📥 차트 다운로드", buf, "command_timeline.png", "image/png", key="cmd_timeline")
 
-    with st.expander("Per-request detail table"):
+    with st.expander("요청별 상세 테이블"):
         st.dataframe(df, use_container_width=True, hide_index=True)
 
     if compare:
         other = "FCFS" if main.stats.policy == "FR-FCFS" else "FR-FCFS"
         a, b = sims[main.stats.policy].stats, sims[other].stats
         st.info(
-            f"**{a.policy}** finished in **{a.total_cycles}** cycles with **{a.hit_rate:.0%}** "
-            f"row-hit rate vs **{b.policy}**: {b.total_cycles} cycles, {b.hit_rate:.0%} hit rate. "
-            "FR-FCFS reorders pending requests to exploit the open row buffer."
+            f"**{a.policy}**는 **{a.total_cycles}** 사이클, row-hit 비율 **{a.hit_rate:.0%}**로 끝났고, "
+            f"**{b.policy}**는 {b.total_cycles} 사이클, hit 비율 {b.hit_rate:.0%}입니다. "
+            "FR-FCFS는 대기 중인 요청을 재정렬해 열린 row buffer를 최대한 활용합니다."
         )
 
 # =====================================================================
@@ -275,7 +275,7 @@ with tab_arch:
 # =====================================================================
 
 with tab_cell:
-    st.subheader("One Transistor + One Capacitor")
+    st.subheader("1개의 트랜지스터 + 1개의 커패시터 (1T1C)")
     intro_left, intro_right = st.columns([1, 2])
     with intro_left:
         st.code(
@@ -288,34 +288,34 @@ with tab_cell:
         )
     with intro_right:
         st.markdown(
-            "A DRAM bit is stored as **charge on a tiny capacitor** behind one access "
-            "transistor. The capacitor **leaks**, so a stored 1 fades toward 0 — this is "
-            "why DRAM is *dynamic* and must be **refreshed**. Reading is **destructive**: "
-            "the cell shares its charge with the bitline, the **sense amplifier** decides "
-            "0 or 1, and a **restore** rewrites the value at full strength."
+            "DRAM의 1비트는 access transistor 하나 뒤에 있는 **작은 커패시터의 전하**로 저장됩니다. "
+            "이 커패시터는 **전하가 새기(leak) 때문에** 저장된 1이 점점 0으로 바랩니다 — 이것이 DRAM이 "
+            "*dynamic*하며 **주기적으로 refresh해야 하는** 이유입니다. 읽기는 **파괴적(destructive)**입니다: "
+            "셀은 자신의 전하를 bitline과 공유하고, **sense amplifier**가 이를 0 또는 1로 판별한 뒤, "
+            "**restore** 과정이 그 값을 원래 세기로 다시 기록합니다."
         )
 
-    st.markdown("#### Simulation controls")
+    st.markdown("#### 시뮬레이션 조작")
     c1, c2, c3, c4 = st.columns(4)
     with c1:
-        tau = st.slider("Retention time τ (time units)", 5.0, 200.0, 40.0, step=5.0,
-                        help="Leakage time constant: q(t) = q₀·e^(−t/τ)")
+        tau = st.slider("Retention time τ (시간 단위)", 5.0, 200.0, 40.0, step=5.0,
+                        help="누설 시상수: q(t) = q₀·e^(−t/τ)")
     with c2:
-        use_refresh = st.checkbox("Enable refresh", value=True)
-        refresh_iv = st.slider("Refresh interval", 5.0, 150.0, 25.0, step=5.0,
+        use_refresh = st.checkbox("Refresh 활성화", value=True)
+        refresh_iv = st.slider("Refresh 주기", 5.0, 150.0, 25.0, step=5.0,
                                disabled=not use_refresh)
     with c3:
-        reads_text = st.text_input("Read times (comma-separated)", "18, 55")
+        reads_text = st.text_input("Read 시점 (쉼표로 구분)", "18, 55")
     with c4:
-        share = st.slider("Read charge sharing loss", 0.0, 0.6, 0.35, step=0.05,
-                          help="Fraction of cell charge lost to the bitline per read")
+        share = st.slider("Read 시 전하 공유 손실률", 0.0, 0.6, 0.35, step=0.05,
+                          help="한 번 읽을 때 bitline으로 빠져나가는 셀 전하의 비율")
         threshold = st.slider("Sense threshold", 0.2, 0.8, 0.5, step=0.05)
 
     t_end = 100.0
     try:
         read_times = [float(x) for x in reads_text.replace(" ", "").split(",") if x]
     except ValueError:
-        st.error("Read times must be numbers, e.g. `18, 55`")
+        st.error("Read 시점은 숫자여야 합니다. 예: `18, 55`")
         read_times = []
 
     params = CellParams(retention_time=tau, sense_threshold=threshold, read_charge_share=share)
@@ -328,34 +328,34 @@ with tab_cell:
 
     # ---- Metrics ----
     m1, m2, m3, m4 = st.columns(4)
-    m1.metric("Refresh operations", with_refresh.refresh_count)
-    m2.metric("Retention failures", with_refresh.failure_count,
-              delta=None if with_refresh.failure_count == 0 else "data lost!",
+    m1.metric("Refresh 실행 횟수", with_refresh.refresh_count)
+    m2.metric("Retention failure 횟수", with_refresh.failure_count,
+              delta=None if with_refresh.failure_count == 0 else "데이터 손실!",
               delta_color="inverse")
-    m3.metric("Final sensed value", with_refresh.final_value)
-    m4.metric("Final value w/o refresh", no_refresh.final_value)
+    m3.metric("최종 감지값", with_refresh.final_value)
+    m4.metric("Refresh 없을 때 최종값", no_refresh.final_value)
 
     if with_refresh.failure_count:
         st.error(
-            "⚠️ The charge dropped below the sense threshold **before** the next "
-            "refresh/read — the sense amplifier read a 0 and restored the wrong value. "
-            "Shorten the refresh interval or increase τ."
+            "⚠️ 다음 refresh/read가 오기 **전에** 전하가 sense threshold 아래로 떨어졌습니다 — "
+            "sense amplifier가 0으로 잘못 읽고 그 값을 그대로 복원했습니다. "
+            "Refresh 주기를 줄이거나 τ를 늘려보세요."
         )
     elif use_refresh and no_refresh.final_value != 1:
         st.success(
-            "✅ Refresh keeps the stored 1 alive. Without refresh the same cell decays "
-            "below the threshold and the bit is lost (dashed line)."
+            "✅ Refresh 덕분에 저장된 1이 유지되고 있습니다. Refresh가 없다면 같은 셀은 "
+            "threshold 아래로 감쇠해 비트가 손실됩니다 (점선 참고)."
         )
 
     # ---- Charge vs time chart ----
     scenario_frames = [
         pd.DataFrame(with_refresh.samples, columns=["time", "charge"]).assign(
-            scenario="with refresh" if use_refresh else "no refresh (selected)")
+            scenario="refresh 있음" if use_refresh else "refresh 없음 (선택됨)")
     ]
     if use_refresh:
         scenario_frames.append(
             pd.DataFrame(no_refresh.samples, columns=["time", "charge"]).assign(
-                scenario="no refresh")
+                scenario="refresh 없음")
         )
     sample_df = pd.concat(scenario_frames, ignore_index=True)
 
@@ -376,8 +376,8 @@ with tab_cell:
         alt.Chart(sample_df)
         .mark_line()
         .encode(
-            x=alt.X("time", title="Time (units)"),
-            y=alt.Y("charge", title="Capacitor charge (normalized)",
+            x=alt.X("time", title="시간 (단위)"),
+            y=alt.Y("charge", title="커패시터 전하 (정규화)",
                     scale=alt.Scale(domain=[0, 1.05])),
             color=alt.Color("scenario", title=None,
                             scale=alt.Scale(range=["#3498db", "#95a5a6"])),
@@ -399,7 +399,7 @@ with tab_cell:
                 y="charge",
                 color=alt.Color(
                     "kind",
-                    title="Event",
+                    title="이벤트",
                     scale=alt.Scale(
                         domain=["READ/SENSE", "RESTORE", "REFRESH", "RETENTION FAILURE"],
                         range=["#e67e22", "#2ecc71", "#3498db", "#e74c3c"],
@@ -421,10 +421,9 @@ with tab_cell:
         use_container_width=True,
     )
     st.caption(
-        "Solid line: cell charge with the selected settings. Dashed grey line: the same "
-        "cell with refresh disabled. Vertical blue rules mark refresh operations; "
-        "orange = destructive read (charge sharing), green = sense-amp restore, "
-        "red = retention failure (wrong value sensed and restored)."
+        "실선: 현재 설정에서의 셀 전하. 회색 점선: 같은 셀에서 refresh를 껐을 때. "
+        "파란 세로선은 refresh 시점을 표시하고, 주황색은 destructive read(전하 공유), "
+        "초록색은 sense-amp restore, 빨간색은 retention failure(잘못된 값이 감지되어 복원됨)를 나타냅니다."
     )
 
     # Save matplotlib version of charge decay chart
@@ -442,47 +441,46 @@ with tab_cell:
     ax.grid(True, alpha=0.3)
     buf = chart_download_col(fig, "one_t_one_c_charge_decay.png")
     plt.close(fig)
-    st.download_button("📥 Download chart", buf, "one_t_one_c_charge_decay.png", "image/png", key="charge_decay")
+    st.download_button("📥 차트 다운로드", buf, "one_t_one_c_charge_decay.png", "image/png", key="charge_decay")
 
     # ---- Refresh overhead ----
-    st.markdown("#### Refresh overhead at the system level")
+    st.markdown("#### 시스템 레벨에서의 refresh overhead")
     o1, o2, o3 = st.columns([1, 1, 2])
     with o1:
-        t_refi = st.number_input("tREFI (cycles between refreshes)", 100, 50000, 9360, step=100)
+        t_refi = st.number_input("tREFI (refresh 간 사이클)", 100, 50000, 9360, step=100)
     with o2:
-        t_rfc = st.number_input("tRFC (cycles per refresh)", 10, 5000, 420, step=10)
+        t_rfc = st.number_input("tRFC (refresh 1회당 사이클)", 10, 5000, 420, step=10)
     overhead = refresh_overhead(int(t_rfc), int(t_refi))
     with o3:
-        st.metric("Rank busy refreshing", f"{overhead:.1%}",
-                  help="tRFC / tREFI — time the rank cannot serve requests")
+        st.metric("랭크가 refresh로 바쁜 비율", f"{overhead:.1%}",
+                  help="tRFC / tREFI — 랭크가 요청을 처리할 수 없는 시간 비율")
         st.progress(min(overhead, 1.0))
 
-    with st.expander("Why does DRAM require refresh? (explanation)"):
+    with st.expander("DRAM은 왜 refresh가 필요할까? (설명)"):
         st.markdown(
             """
-**1. The capacitor leaks.** A DRAM cell stores a bit as charge on a capacitor of only
-a few femtofarads. Junction and gate leakage drain it, so a stored **1** decays
-exponentially — modeled here as `q(t) = q₀ · e^(−t/τ)`. Once the charge falls below
-what the sense amplifier can distinguish from 0, the bit is **silently lost**.
+**1. 커패시터는 전하가 샙니다.** DRAM 셀은 단 몇 femtofarad 크기의 커패시터에 전하로 비트를
+저장합니다. 접합부(junction)와 게이트의 누설 전류가 이 전하를 빼내기 때문에, 저장된 **1**은
+지수적으로 감쇠합니다 — 여기서는 `q(t) = q₀ · e^(−t/τ)`로 모델링했습니다. 전하가 sense
+amplifier가 0과 구분할 수 있는 수준 아래로 떨어지면, 그 비트는 **아무 경고 없이 사라집니다.**
 
-**2. Refresh = read + restore, in time.** Before the charge crosses the sense
-threshold, the DRAM internally *senses* each row and *rewrites* it at full strength.
-JEDEC requires every cell to be refreshed within its retention window
-(e.g. 64 ms — one refresh command per row every **tREFI ≈ 7.8 µs**).
+**2. Refresh는 곧 정해진 시간 안의 read + restore입니다.** 전하가 sense threshold를 넘기
+전에, DRAM은 내부적으로 각 row를 *감지(sense)*하고 원래 세기로 *다시 기록(rewrite)*합니다.
+JEDEC 표준은 모든 셀이 자신의 retention window 안에서 refresh되도록 요구합니다
+(예: 64ms — row 하나당 **tREFI ≈ 7.8µs**마다 refresh 명령 1회).
 
-**3. Reads are destructive.** Opening the access transistor shares the cell's charge
-with the bitline — the stored level is degraded by the very act of reading. The sense
-amplifier amplifies the tiny bitline swing to a clean 0/1, and that value is restored
-into the cell (this is also why `tRAS` exists: the row must stay open long enough for
-the restore to complete).
+**3. 읽기는 파괴적입니다.** Access transistor를 열면 셀의 전하가 bitline과 공유되며,
+읽는 행위 자체가 저장된 값을 약화시킵니다. Sense amplifier는 이 작은 bitline 변화를
+증폭해 깔끔한 0/1로 만들고, 그 값을 셀에 다시 복원합니다 (이것이 `tRAS`가 존재하는
+이유이기도 합니다: restore가 끝날 때까지 row가 충분히 오래 열려 있어야 합니다).
 
-**4. Refresh is not free.** While a rank executes a refresh (tRFC), it cannot serve
-memory requests — a bandwidth/latency tax of roughly `tRFC / tREFI` (~4–5 % on DDR4,
-and growing with density since more rows must be refreshed per command).
+**4. Refresh는 공짜가 아닙니다.** 랭크가 refresh(tRFC)를 실행하는 동안에는 메모리 요청을
+처리할 수 없습니다 — 대역폭/지연시간에 대략 `tRFC / tREFI` 만큼의 세금이 붙는 셈입니다
+(DDR4 기준 약 4~5%이며, 용량이 커질수록 명령 하나당 refresh해야 할 row가 늘어나 이 비율도 커집니다).
 
-**Try it:** set the refresh interval *longer* than `τ·ln(1/threshold)` ≈ the moment the
-charge crosses the threshold — the next refresh will sense a 0, faithfully restore the
-wrong value, and the red *retention failure* marker appears. That is exactly the data
-loss real DRAM prevents by refreshing on time.
+**직접 해보세요:** refresh 주기를 `τ·ln(1/threshold)` ≈ 전하가 threshold를 넘어서는 시점보다
+*더 길게* 설정해보세요 — 다음 refresh는 0을 감지해서 잘못된 값을 그대로 복원하고, 빨간
+*retention failure* 마커가 나타납니다. 이것이 실제 DRAM이 제때 refresh해서 막고 있는
+바로 그 데이터 손실입니다.
             """
         )
